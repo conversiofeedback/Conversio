@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Converio - CRM & Sauron ver. (17.3) open beta
+// @name         Converio - CRM & Sauron ver. (17.4) open beta test
 // @namespace    http://tampermonkey.net
 // @version      17.3
 // @description  Кнопка CRM прижата вправо (right:0). Удержание фраз 3.5с + затухание 3.5с. Логика Sauron, MicroSIP + Тортик и обход бага Enter через подмену буфера.
