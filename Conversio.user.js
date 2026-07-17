@@ -6,8 +6,8 @@
 // @match        *://*/*
 // @grant        none
 // @run-at       document-end
-// @updateURL    https://githubusercontent.com
-// @downloadURL  https://githubusercontent.com
+// @updateURL    https://github.com
+// @downloadURL  https://github.com
 // ==/UserScript==
 
 (function() {
