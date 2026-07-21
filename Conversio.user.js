@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Converio - CRM & Sauron ver. (19.8) Release
+// @name         Converio - CRM & Sauron ver. (20.0) Release
 // @namespace    http://tampermonkey.net
-// @version      19.8
+// @version      20.0
 // @description  Умная очистка ФИО, ченджлог обновлений, красивое форматирование текста без переноса букв.
 // @match        *://*/*
 // @grant        none
@@ -13,7 +13,7 @@
 (function() {
     'use strict';
 
-    const SCRIPT_VERSION = '19.8';
+    const SCRIPT_VERSION = '20.0';
     const SCRIPT_DESC = 'Умная очистка ФИО, ченджлог обновлений, красивое форматирование текста.';
     const CHANGELOG_TEXT = [
         '🎉 Скрипт вышел из беты в полноценный релиз!',
@@ -81,7 +81,8 @@
             <div style="font-size: 13px; line-height: 1.6; color: #dcdde1; margin-bottom: 18px; word-break: keep-all;">
                 <p style="margin-top:0; margin-bottom: 12px;">
                     <b>📋 Копирование лида (CRM):</b><br>
-                    Нажми «Копировать ФИО и&nbsp;дату»&nbsp;— данные автоматически улетят в&nbsp;буфер в&nbsp;идеальном формате для Sauron (<code>Фамилия Имя Отчество ДД.ММ.ГГГГ</code>).
+                    Нажми «Копировать ФИО и&nbsp;дату»&nbsp;— данные лида будут скопированы в&nbsp;подходящем формате для Sauron:<br>
+                    <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 4px;">(Фамилия Имя Отчество ДД.ММ.ГГГГ).</code>
                 </p>
                 <p style="margin-bottom: 12px;">
                     <b>🔍 Мгновенный пробив (Sauron):</b><br>
@@ -89,7 +90,7 @@
                 </p>
                 <p style="margin-bottom: 0;">
                     <b>📞 Быстрый звонок (Sauron):</b><br>
-                    Наведи курсор на&nbsp;номер телефона и&nbsp;<b>нажми на&nbsp;колесико мыши&nbsp;<span style="white-space:nowrap;">(СКМ)</span></b>&nbsp;— номер подсветится и&nbsp;перенаправится в&nbsp;MicroSIP.
+                    Наведи курсор на&nbsp;номер телефона и&nbsp;нажми на&nbsp;колесико&nbsp;мыши&nbsp;<span style="white-space:nowrap;">(СКМ)</span>&nbsp;— номер подсветится и&nbsp;будет автоматически набран в&nbsp;MicroSIP.
                 </p>
             </div>
             <div style="display:flex; justify-content:space-between; align-items:center; border-top: 1px solid #433878; padding-top: 14px;">
