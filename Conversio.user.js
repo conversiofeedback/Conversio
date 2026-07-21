@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Converio - CRM & Sauron ver. (19.4) open beta test
+// @name         Converio - CRM & Sauron ver. (19.5) open beta test
 // @namespace    http://tampermonkey.net
-// @version      19.4
-// @description  Умная очистка ФИО (Иванов Иван), ченджлог обновлений, обучение для новичков, адаптивный ховер, СКМ-подсветка.
+// @version      19.5
+// @description  Умная очистка ФИО, ченджлог обновлений, красивое форматирование текста без переноса букв.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-end
@@ -13,13 +13,13 @@
 (function() {
     'use strict';
 
-    const SCRIPT_VERSION = '19.4';
-    const SCRIPT_DESC = 'Умная очистка ФИО (Иванов Иван), ченджлог обновлений, обучение для новичков, адаптивный ховер, СКМ-подсветка.';
+    const SCRIPT_VERSION = '19.5';
+    const SCRIPT_DESC = 'Умная очистка ФИО, ченджлог обновлений, красивое форматирование текста.';
     const CHANGELOG_TEXT = [
-        '✨ Умная очистка ФИО: автоисправление регистра ("иванов иван" -> "Иванов Иван")',
-        '🎯 Сохранена оригинальная буква "Ё/ё" (без автозамены на Е)',
+        '📐 Исправлена типографика: запрещены переносы слов по буквам (MicroSIP, поиск)',
+        '✨ Улучшена логика первого показа обучения и сохранения галочки',
+        '🎯 Сохранена оригинальная буква "Ё/ё"',
         '🔒 Приветствие и ченджлог отображаются строго в CRM',
-        '📐 Исправлена типографика: запрещены разрывы слов на буквах (пои-ск, MicroSI-P)',
         '🧹 Авто-удаление лишних пробелов, спецсимволов и мусора при вставке'
     ];
 
@@ -31,13 +31,12 @@
         if (!str) return '';
         
         let clean = str.trim();
-        // Удаляем спецсимволы (оставляем буквы, включая Ё/ё, цифры, пробелы, дефисы и точки)
         clean = clean.replace(/[^\w\s\d\-А-Яа-яЁё\.]/gi, ' ');
         clean = clean.replace(/\s+/g, ' ').trim();
 
         clean = clean.split(' ').map(word => {
             if (!word) return '';
-            if (/^\d[\d\.]+\d$/.test(word)) return word; // Не трогаем даты
+            if (/^\d[\d\.]+\d$/.test(word)) return word;
             return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
         }).join(' ');
 
@@ -46,6 +45,7 @@
 
     // Показ Обучения (Только в CRM)
     function showTutorialModal() {
+        // Если пользователь поставил галочку "больше не показывать" — выходим
         if (localStorage.getItem('conversio_hide_tutorial') === 'true') return;
         if (document.getElementById('conversio-modal')) return;
 
@@ -120,15 +120,22 @@
         if (ackBtn) ackBtn.onclick = saveAndClose;
     }
 
-    // Показ Ченджлога при обновлении (Только в CRM)
+    // Проверка первого запуска или обновления
     function checkChangelog() {
         const savedVersion = localStorage.getItem('conversio_version');
+        
+        // Самый первый запуск скрипта
         if (!savedVersion) {
             showTutorialModal();
             localStorage.setItem('conversio_version', SCRIPT_VERSION);
         } else if (savedVersion !== SCRIPT_VERSION) {
+            // При обновлении версии показываем ченджлог (и обучение, если галочка НЕ стояла)
+            showTutorialModal();
             showChangelogModal();
             localStorage.setItem('conversio_version', SCRIPT_VERSION);
+        } else {
+            // Обычная загрузка той же версии — покажет обучение только если НЕ было галочки "Больше не показывать"
+            showTutorialModal();
         }
     }
 
@@ -215,7 +222,6 @@
         let btn = null;
         let isSuccessState = false;
 
-        // Вызов Обучения/Ченджлога ТОЛЬКО В CRM
         setTimeout(checkChangelog, 1000);
 
         setInterval(function() {
