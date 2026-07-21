@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Converio - CRM & Sauron ver. (17.4) open beta test
+// @name         Converio - CRM & Sauron ver. (19.1) open beta test
 // @namespace    http://tampermonkey.net
-// @version      17.4
-// @description  Кнопка CRM прижата вправо (right:0). Удержание фраз 3.5с + затухание 3.5с. Логика Sauron, MicroSIP + Тортик и обход бага Enter через подмену буфера.
+// @version      19.1
+// @description  Умная очистка ФИО (Иванов Иван), ченджлог обновлений, обучение для новичков, адаптивный ховер, СКМ-подсветка.
 // @match        *://*/*
 // @grant        none
 // @run-at       document-end
@@ -13,16 +13,174 @@
 (function() {
     'use strict';
 
-    // Глобальные переменные состояния и таймеров
+    const SCRIPT_VERSION = '19.1';
+    const SCRIPT_DESC = 'Умная очистка ФИО (Иванов Иван), ченджлог обновлений, обучение для новичков, адаптивный ховер, СКМ-подсветка.';
+    const CHANGELOG_TEXT = [
+        '✨ Умная очистка ФИО: автоисправление регистра ("иванов иван" -> "Иванов Иван")',
+        '🎯 Сохранена оригинальная буква "Ё/ё" (без автозамены на Е)',
+        '🧹 Авто-удаление лишних пробелов, спецсимволов и мусора при вставке',
+        '🎓 Интерактивное обучение при первом запуске в стиле CRM',
+        '📢 Всплывающее окно ченджлога при обновлении скрипта'
+    ];
+
     let crmTimeoutHold = null;
     let crmTimeoutFade = null;
 
-    // Внедряем стили для анимированного тортика под полем даты в CRM
+    // Функция Умной Очистки и Форматирования Текста
+    function smartCleanText(str) {
+        if (!str) return '';
+        
+        let clean = str.trim();
+        // Удаляем спецсимволы (оставляем буквы, включая Ё/ё, цифры, пробелы, дефисы и точки)
+        clean = clean.replace(/[^\w\s\d\-А-Яа-яЁё\.]/gi, ' ');
+        clean = clean.replace(/\s+/g, ' ').trim();
+
+        clean = clean.split(' ').map(word => {
+            if (!word) return '';
+            if (/^\d[\d\.]+\d$/.test(word)) return word; // Не трогаем даты
+            return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+        }).join(' ');
+
+        return clean;
+    }
+
+    // Показ Обучения (Дизайн CRM)
+    function showTutorialModal() {
+        if (localStorage.getItem('conversio_hide_tutorial') === 'true') return;
+        if (document.getElementById('conversio-modal')) return;
+
+        const modal = document.createElement('div');
+        modal.id = 'conversio-modal';
+        modal.style = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 420px;
+            background: #2d264f;
+            color: #ffffff;
+            border: 2px solid #6c5ce7;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.6), 0 0 15px rgba(108, 92, 231, 0.4);
+            z-index: 99999999;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        `;
+
+        modal.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 14px; border-bottom: 1px solid #433878; padding-bottom: 10px;">
+                <strong style="color: #ffffff; font-size: 16px; display:flex; align-items:center; gap: 6px;">
+                    <span>👋</span> Добро пожаловать в Conversio!
+                </strong>
+                <span id="close-modal-btn" style="cursor:pointer; color:#a29bfe; font-weight:bold; font-size: 20px;">&times;</span>
+            </div>
+            <div style="font-size: 13px; line-height: 1.6; color: #dcdde1; margin-bottom: 18px;">
+                <p style="margin-top:0; margin-bottom: 10px;">
+                    <b>📋 Копирование лида (CRM):</b><br>
+                    Нажми «Копировать ФИО и дату» — данные автоматически улетят в буфер в идеальном формате для Sauron (<code>Фамилия Имя Отчество ДД.ММ.ГГГГ</code>).
+                </p>
+                <p style="margin-bottom: 10px;">
+                    <b>🔍 Мгновенный пробив (Sauron):</b><br>
+                    Кнопка «Вставить и пробить клиента» автоматически очистит текст от опечаток/мусора, вставит его и сразу запустит поиск.
+                </p>
+                <p style="margin-bottom: 0;">
+                    <b>📞 Быстрый звонок (Sauron):</b><br>
+                    Наведи курсор на номер телефона и <b>нажми на колесико мыши (СКМ)</b> — номер подсветится и перенаправится в софтфон.
+                </p>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; border-top: 1px solid #433878; padding-top: 14px;">
+                <label style="font-size: 12px; color: #a29bfe; cursor:pointer; display:flex; align-items:center; gap: 6px; user-select:none;">
+                    <input type="checkbox" id="dont-show-again" style="cursor:pointer; accent-color: #6c5ce7;">
+                    Больше не показывать
+                </label>
+                <button id="ack-modal-btn" style="background:#10b981; border:none; color:#fff; padding: 8px 18px; border-radius: 6px; font-weight:bold; font-size: 13px; cursor:pointer; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4); transition: background 0.2s;">
+                    Понятно!
+                </button>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        const closeBtn = document.getElementById('close-modal-btn');
+        const ackBtn = document.getElementById('ack-modal-btn');
+        const dontShowCheckbox = document.getElementById('dont-show-again');
+
+        const saveAndClose = () => {
+            if (dontShowCheckbox && dontShowCheckbox.checked) {
+                localStorage.setItem('conversio_hide_tutorial', 'true');
+            }
+            modal.remove();
+        };
+
+        if (closeBtn) closeBtn.onclick = saveAndClose;
+        if (ackBtn) ackBtn.onclick = saveAndClose;
+    }
+
+    // Показ Ченджлога при обновлении (Дизайн CRM)
+    function checkChangelog() {
+        const savedVersion = localStorage.getItem('conversio_version');
+        if (!savedVersion) {
+            showTutorialModal();
+            localStorage.setItem('conversio_version', SCRIPT_VERSION);
+        } else if (savedVersion !== SCRIPT_VERSION) {
+            showChangelogModal();
+            localStorage.setItem('conversio_version', SCRIPT_VERSION);
+        }
+    }
+
+    function showChangelogModal() {
+        if (document.getElementById('conversio-changelog-modal')) return;
+
+        const modal = document.createElement('div');
+        modal.id = 'conversio-changelog-modal';
+        modal.style = `
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 360px;
+            background: #2d264f;
+            color: #ffffff;
+            border: 2px solid #6c5ce7;
+            border-radius: 10px;
+            padding: 18px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6), 0 0 12px rgba(108, 92, 231, 0.3);
+            z-index: 99999999;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        `;
+
+        let listHtml = CHANGELOG_TEXT.map(item => `<li style="margin-bottom: 6px; font-size: 12px; line-height: 1.4; color: #dcdde1;">${item}</li>`).join('');
+
+        modal.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px; border-bottom: 1px solid #433878; padding-bottom: 6px;">
+                <strong style="color: #ffffff; font-size: 14px;">🚀 Обновление Conversio v${SCRIPT_VERSION}</strong>
+                <span id="close-changelog" style="cursor:pointer; color:#a29bfe; font-weight:bold; font-size: 18px;">&times;</span>
+            </div>
+            <div style="font-size: 11px; color: #a29bfe; margin-bottom: 10px; font-style: italic;">
+                ${SCRIPT_DESC}
+            </div>
+            <ul style="padding-left: 18px; margin: 0 0 14px 0;">
+                ${listHtml}
+            </ul>
+            <button id="ack-changelog" style="width:100%; background:#10b981; border:none; color:#fff; padding: 8px; border-radius: 6px; font-weight:bold; font-size: 12px; cursor:pointer; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);">
+                Отлично, закрыть!
+            </button>
+        `;
+
+        document.body.appendChild(modal);
+
+        const closeBtn = document.getElementById('close-changelog');
+        const ackBtn = document.getElementById('ack-changelog');
+        const removeModal = () => modal.remove();
+
+        if (closeBtn) closeBtn.onclick = removeModal;
+        if (ackBtn) ackBtn.onclick = removeModal;
+    }
+
+    // Внедряем стили CRM
     const style = document.createElement('style');
     style.innerHTML = '@keyframes sFl{0%,100%{transform:scale(1) rotate(-1deg);opacity:0.9}50%{transform:scale(1.15) rotate(2deg);opacity:1;filter:drop-shadow(0 0 3px #ffd700)}}.sauron-cake-wrap{display:block;margin-top:6px;margin-left:2px;}.s-ck{display:inline-flex;align-items:flex-end;position:relative;width:22px;height:22px;vertical-align:middle;}.s-cb{position:absolute;bottom:0;width:22px;height:11px;background:#ff6496;border-radius:3px 3px 1px 1px;box-shadow:inset 0 -2px 0 #e6467d,0 1px 2px rgba(0,0,0,0.2)}.s-cc{position:absolute;bottom:7px;width:22px;height:2px;background:#fff;border-radius:1px}.s-cd{position:absolute;bottom:11px;width:2px;height:5px;background:#00e5ff;border-radius:1px}.s-cd:nth-child(1){left:3px}.s-cd:nth-child(2){left:10px;background:#ffdf00}.s-cd:nth-child(3){left:17px}.s-fm{position:absolute;top:-4px;left:-1px;width:4px;height:4px;background:#ff5722;border-radius:50% 50% 20% 20%;transform-origin:bottom center;animation:sFl .5s infinite ease-in-out}.s-cd:nth-child(2) .s-fm{animation-delay:.1s;background:#ff9800}.s-cd:nth-child(3) .s-fm{animation-delay:.2s}';
     document.head.appendChild(style);
 
-    // Функция проверки ДР из визуального пака
     function isBD(str) {
         if (!str || !str.includes('-')) return false;
         const p = str.trim().split('-');
@@ -31,7 +189,6 @@
         return (p[2].padStart(2,'0') === today.getDate().toString().padStart(2,'0') && p[1].padStart(2,'0') === (today.getMonth()+1).toString().padStart(2,'0'));
     }
 
-    // Универсальный перевод любой даты в чистый формат ДД.ММ.ГГГГ
     function convertDate(str) {
         if (!str) return '';
         const parts = str.match(/\d+/g);
@@ -46,9 +203,13 @@
         return `${day.padStart(2, '0')}.${month.padStart(2, '0')}.${year}`;
     }
 
+    // Инициализация вызова Ченджлога / Обучения
+    setTimeout(checkChangelog, 1000);
+
     // 1. ЛОГИКА CRM (ЛЕВАЯ ВКЛАДКА)
     if (window.location.href.includes('jrrgoxf-nreu-rwkhuv.top')) {
         let btn = null;
+        let isSuccessState = false;
 
         setInterval(function() {
             let fioIn = document.getElementById('importField-770') || document.querySelector('textarea[data-id="770"]');
@@ -69,14 +230,20 @@
                     if (btn && !btn.innerHTML.includes('🎂') && !btn.innerHTML.includes('✅')) {
                         btn.setAttribute('data-bd', 'true');
                         btn.innerHTML = '🎂 ДР КЛИЕНТА! Копировать 🎂';
-                        btn.style.backgroundColor = '#ff6496';
+                        if (!isSuccessState) {
+                            btn.style.backgroundColor = '#8e2a59';
+                            btn.style.borderColor = '#ff6496';
+                        }
                     }
                 } else {
                     if (existingCake) existingCake.remove();
                     if (btn && btn.innerHTML.includes('🎂') && !btn.innerHTML.includes('✅')) {
                         btn.removeAttribute('data-bd');
                         btn.innerHTML = '📋 Копировать фио и дату';
-                        btn.style.backgroundColor = '#007bff';
+                        if (!isSuccessState) {
+                            btn.style.backgroundColor = '#2d264f';
+                            btn.style.borderColor = '#6c5ce7';
+                        }
                     }
                 }
             }
@@ -85,41 +252,80 @@
                 btn = document.createElement('button');
                 btn.id = 'sauron-copy-btn';
 
-                if (dateIn.value && isBD(dateIn.value)) {
+                const isBirthday = dateIn.value && isBD(dateIn.value);
+                if (isBirthday) {
                     btn.setAttribute('data-bd', 'true');
                     btn.innerHTML = '🎂 ДР КЛИЕНТА! Копировать 🎂';
-                    btn.style = 'position:fixed;top:59px;right:0px;z-index:99999999;padding:10px 16px;background:#ff6496;color:#fff;border:none;border-radius:4px 0 0 4px;cursor:pointer;box-shadow:-2px 2px 6px rgba(0,0,0,0.3);font-weight:bold;font-size:13px;white-space:nowrap;display:block;transition: background-color 3.5s ease, color 3.5s ease;';
                 } else {
                     btn.innerHTML = '📋 Копировать фио и дату';
-                    btn.style = 'position:fixed;top:59px;right:0px;z-index:99999999;padding:10px 16px;background:#007bff;color:#fff;border:none;border-radius:4px 0 0 4px;cursor:pointer;box-shadow:-2px 2px 6px rgba(0,0,0,0.3);font-weight:bold;font-size:13px;white-space:nowrap;display:block;transition: background-color 3.5s ease, color 3.5s ease;';
                 }
+
+                btn.style = `
+                    position: fixed;
+                    top: 59px;
+                    right: 0px;
+                    z-index: 99999999;
+                    padding: 10px 16px;
+                    background: ${isBirthday ? '#8e2a59' : '#2d264f'};
+                    color: #ffffff;
+                    border: 1px solid ${isBirthday ? '#ff6496' : '#6c5ce7'};
+                    border-right: none;
+                    border-radius: 6px 0 0 6px;
+                    cursor: pointer;
+                    box-shadow: -2px 2px 8px rgba(0, 0, 0, 0.4);
+                    font-weight: bold;
+                    font-size: 13px;
+                    white-space: nowrap;
+                    display: block;
+                    transition: background 0.6s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.6s ease, box-shadow 0.6s ease;
+                `;
+
+                btn.onmouseenter = function() {
+                    if (isSuccessState) return;
+                    const bd = this.hasAttribute('data-bd');
+                    this.style.background = bd ? '#a8326b' : '#6c5ce7';
+                    this.style.boxShadow = bd ? '-2px 2px 14px rgba(255, 100, 150, 0.6)' : '-2px 2px 14px rgba(108, 92, 231, 0.6)';
+                };
+                btn.onmouseleave = function() {
+                    if (isSuccessState) return;
+                    const bd = this.hasAttribute('data-bd');
+                    this.style.background = bd ? '#8e2a59' : '#2d264f';
+                    this.style.boxShadow = '-2px 2px 8px rgba(0, 0, 0, 0.4)';
+                };
 
                 btn.onclick = function(e) {
                     e.preventDefault();
                     if (fioIn.value && dateIn.value) {
                         const formattedDate = convertDate(dateIn.value);
-                        const finalData = `${fioIn.value.trim()} ${formattedDate}`;
+                        const rawData = `${fioIn.value.trim()} ${formattedDate}`;
+                        const finalData = smartCleanText(rawData);
 
                         navigator.clipboard.writeText(finalData).then(() => {
                             clearTimeout(crmTimeoutHold);
                             clearTimeout(crmTimeoutFade);
 
-                            btn.style.transition = 'none';
-                            btn.style.backgroundColor = '#28a745';
+                            isSuccessState = true;
+
+                            btn.style.backgroundColor = '#10b981';
+                            btn.style.borderColor = '#34d399';
+                            btn.style.boxShadow = '-2px 2px 16px rgba(16, 185, 129, 0.8)';
 
                             const phrases = ['✅ Скопировано!', '✅ Дело сделано!', '✅ Теперь в Sauron!', '✅ Осталось передать!', '✅ Уже на банкомате!', '✅ Скорее набирай!'];
                             btn.innerHTML = phrases[Math.floor(Math.random() * phrases.length)];
 
                             crmTimeoutHold = setTimeout(() => {
-                                btn.style.transition = 'background-color 3.5s ease, color 3.5s ease';
-                                btn.style.backgroundColor = btn.hasAttribute('data-bd') ? '#ff6496' : '#007bff';
+                                const bd = btn.hasAttribute('data-bd');
+                                btn.style.backgroundColor = bd ? '#8e2a59' : '#2d264f';
+                                btn.style.borderColor = bd ? '#ff6496' : '#6c5ce7';
+                                btn.style.boxShadow = '-2px 2px 8px rgba(0, 0, 0, 0.4)';
 
                                 crmTimeoutFade = setTimeout(() => {
+                                    isSuccessState = false;
                                     if (btn && dateIn) {
                                         btn.innerHTML = btn.hasAttribute('data-bd') ? '🎂 ДР КЛИЕНТА! Копировать 🎂' : '📋 Копировать фио и дату';
                                     }
-                                }, 3500);
-                            }, 3500);
+                                }, 600);
+                            }, 3000);
                         });
                     } else { alert('Поля пустые!'); }
                 };
@@ -127,17 +333,38 @@
             }
         }, 500);
     }
+
     // 2. ЛОГИКА SAURON (ПРАВАЯ ВКЛАДКА)
     if (window.location.href.includes('sauron.info')) {
 
-        // ТВОЙ РОДНОЙ И БЕЗОТКАЗНЫЙ СКМ-КОД ДЛЯ MICROSIP (БЕЗ ИЗМЕНЕНИЙ)
+        function isLightTheme() {
+            if (document.documentElement.classList.contains('light') || document.body.classList.contains('light')) return true;
+            if (document.documentElement.getAttribute('data-theme') === 'light' || document.body.getAttribute('data-theme') === 'light') return true;
+            
+            const bg = window.getComputedStyle(document.body).backgroundColor;
+            const rgb = bg.match(/\d+/g);
+            if (rgb && rgb.length >= 3) {
+                return (parseInt(rgb[0]) + parseInt(rgb[1]) + parseInt(rgb[2])) / 3 > 150;
+            }
+            return false;
+        }
+
+        function updateButtonTheme() {
+            const btn = document.getElementById('sauron-paste-btn');
+            if (!btn) return;
+
+            btn.style.background = '#D05A28';
+            btn.style.borderColor = isLightTheme() ? '#B3461B' : '#E26833';
+        }
+
+        // Подсветка номеров СКМ
         document.addEventListener('mousedown', function(e) {
             if (e.button === 1) {
                 const target = e.target;
                 if (!target) return;
 
                 const isPhoneElement = (target.classList && target.classList.contains('rh-text')) ||
-                                       (/^\+?[\d\s\-\(\)]+$/.test(target.innerText.trim()) && target.innerText.trim().length >= 10);
+                                        (/^\+?[\d\s\-\(\)]+$/.test(target.innerText.trim()) && target.innerText.trim().length >= 10);
 
                 if (isPhoneElement) {
                     let rawPhone = target.innerText.trim();
@@ -146,7 +373,9 @@
 
                     if (cleanPhone.length >= 10) {
                         e.preventDefault(); e.stopPropagation();
-                        target.style.color = '#28a745';
+                        
+                        target.style.color = '#D05A28';
+                        target.style.transition = 'color 0.2s ease';
                         setTimeout(() => { target.style.color = ''; }, 1200);
 
                         navigator.clipboard.writeText(cleanPhone);
@@ -161,34 +390,38 @@
             }
         });
 
-        // ЖЕСТКИЙ ПЕРЕХВАТ ENTER ДЛЯ ОБМАНА СОБСТВЕННОГО СКРИПТА САУРОНА
+        // Перехват Enter с умной очисткой
         document.addEventListener('keydown', function(e) {
             const sIn = document.getElementById('search') || document.querySelector('input[name="query"]');
 
-            // Если курсор стоит в поле поиска и прожат Enter
             if (document.activeElement === sIn && e.key === 'Enter') {
                 const manualText = sIn.value ? sIn.value.trim() : '';
 
-                // Если ты ввёл что-то руками, мы принудительно перезаписываем буфер Windows твоим текстом!
                 if (manualText !== '') {
-                    // Перехватываем управление до отправки формы
                     e.stopImmediatePropagation();
                     e.preventDefault();
 
-                    // Записываем твой ручной текст в буфер обмена.
-                    // Когда скрытый скрипт Саурона попытается вставить данные из буфера — он вставит твой же ручной текст!
-                    navigator.clipboard.writeText(manualText).then(() => {
-                        // И сразу принудительно отправляем форму на пробив
+                    const cleanedText = smartCleanText(manualText);
+                    sIn.value = cleanedText;
+
+                    navigator.clipboard.writeText(cleanedText).then(() => {
                         const sBtn = document.querySelector('button.hs-go') || document.querySelector('button[type="submit"]');
                         if (sBtn) { sBtn.click(); }
                         else if (sIn.form) { sIn.form.submit(); }
                     });
                 }
             }
-        }, true); // Флаг true заставляет наш щит сработать раньше внутренних скриптов сайта
+        }, true);
 
-        // НАША ЗЕЛЕНАЯ КНОПКА (РАБОТАЕТ СТРОГО ПО КЛИКУ МЫШКИ)
         setInterval(function() {
+            const themeBtn = document.getElementById('theme-toggle');
+            if (themeBtn && !themeBtn.hasAttribute('data-sauron-bound')) {
+                themeBtn.setAttribute('data-sauron-bound', 'true');
+                themeBtn.addEventListener('click', function() {
+                    setTimeout(updateButtonTheme, 50);
+                });
+            }
+
             const sIn = document.getElementById('search') || document.querySelector('input[name="query"]');
             if (sIn && !document.getElementById('sauron-paste-btn')) {
                 const container = sIn.parentNode;
@@ -202,14 +435,56 @@
                 const actBtn = document.createElement('button');
                 actBtn.id = 'sauron-paste-btn';
                 actBtn.innerHTML = '🔍 Вставить и пробить клиента';
-                actBtn.style = 'position:absolute;right:98px;top:50%;transform:translateY(-48%);height:calc(100% - 6px);max-height:38px;padding:0 14px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:bold;font-size:12px;white-space:nowrap;z-index:10;';
+                
+                const light = isLightTheme();
+                actBtn.style = `
+                    position: absolute;
+                    right: 98px;
+                    top: 50%;
+                    transform: translateY(-48%);
+                    height: calc(100% - 6px);
+                    max-height: 38px;
+                    padding: 0 14px;
+                    background: #D05A28;
+                    color: #fff;
+                    border: 1px solid ${light ? '#B3461B' : '#E26833'};
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-weight: bold;
+                    font-size: 12px;
+                    white-space: nowrap;
+                    z-index: 10;
+                    transition: all 0.15s ease;
+                `;
+
+                actBtn.onmouseenter = function() { 
+                    const isLight = isLightTheme();
+                    this.style.background = isLight ? '#B3461B' : '#F17138'; 
+                    this.style.borderColor = isLight ? '#963812' : '#F8834F';
+                };
+                actBtn.onmouseleave = function() { 
+                    const isLight = isLightTheme();
+                    this.style.background = '#D05A28'; 
+                    this.style.borderColor = isLight ? '#B3461B' : '#E26833';
+                };
+
+                actBtn.onmousedown = function() {
+                    const isLight = isLightTheme();
+                    this.style.background = isLight ? '#963812' : '#E26229';
+                };
+                actBtn.onmouseup = function() {
+                    const isLight = isLightTheme();
+                    this.style.background = isLight ? '#B3461B' : '#F17138';
+                };
 
                 actBtn.onclick = function(e) {
                     e.preventDefault(); e.stopPropagation();
 
                     navigator.clipboard.readText().then(text => {
-                        const cleanText = text ? text.trim() : '';
-                        if (cleanText) {
+                        const rawText = text ? text.trim() : '';
+                        if (rawText) {
+                            const cleanText = smartCleanText(rawText);
+
                             sIn.focus();
                             sIn.value = cleanText;
                             sIn.dispatchEvent(new Event('input', { bubbles: true }));
@@ -224,10 +499,14 @@
                             alert('Буфер обмена пуст! Сначала скопируйте данные из CRM.');
                         }
                     }).catch(() => {
-                        alert('Разрешите браузеру доступ к буферу обмена для работы кнопки!');
+                        alert('Разрешите браузеру доступ к буферу обмена!');
                     });
                 };
                 sIn.insertAdjacentElement('afterend', actBtn);
+
+                const themeObserver = new MutationObserver(() => updateButtonTheme());
+                themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme', 'style'] });
+                themeObserver.observe(document.body, { attributes: true, attributeFilter: ['class', 'data-theme', 'style'] });
             }
         }, 500);
     }
