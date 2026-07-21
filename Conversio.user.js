@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Converio - CRM & Sauron ver. (19.1) open beta
+// @name         Converio - CRM & Sauron ver. (19.3) open beta test
 // @namespace    http://tampermonkey.net
-// @version      19.1
+// @version      19.3
 // @description  Умная очистка ФИО (Иванов Иван), ченджлог обновлений, обучение для новичков, адаптивный ховер, СКМ-подсветка.
 // @match        *://*/*
 // @grant        none
@@ -13,14 +13,14 @@
 (function() {
     'use strict';
 
-    const SCRIPT_VERSION = '19.1';
+    const SCRIPT_VERSION = '19.3';
     const SCRIPT_DESC = 'Умная очистка ФИО (Иванов Иван), ченджлог обновлений, обучение для новичков, адаптивный ховер, СКМ-подсветка.';
     const CHANGELOG_TEXT = [
         '✨ Умная очистка ФИО: автоисправление регистра ("иванов иван" -> "Иванов Иван")',
         '🎯 Сохранена оригинальная буква "Ё/ё" (без автозамены на Е)',
-        '🧹 Авто-удаление лишних пробелов, спецсимволов и мусора при вставке',
-        '🎓 Интерактивное обучение при первом запуске в стиле CRM',
-        '📢 Всплывающее окно ченджлога при обновлении скрипта'
+        '🔒 Приветствие и ченджлог отображаются строго в CRM',
+        '📞 В обучении уточнено название программы: MicroSIP',
+        '🧹 Авто-удаление лишних пробелов, спецсимволов и мусора при вставке'
     ];
 
     let crmTimeoutHold = null;
@@ -44,7 +44,7 @@
         return clean;
     }
 
-    // Показ Обучения (Дизайн CRM)
+    // Показ Обучения (Только в CRM)
     function showTutorialModal() {
         if (localStorage.getItem('conversio_hide_tutorial') === 'true') return;
         if (document.getElementById('conversio-modal')) return;
@@ -85,7 +85,7 @@
                 </p>
                 <p style="margin-bottom: 0;">
                     <b>📞 Быстрый звонок (Sauron):</b><br>
-                    Наведи курсор на номер телефона и <b>нажми на колесико мыши (СКМ)</b> — номер подсветится и перенаправится в софтфон.
+                    Наведи курсор на номер телефона и <b>нажми на колесико мыши (СКМ)</b> — номер подсветится и перенаправится в MicroSIP.
                 </p>
             </div>
             <div style="display:flex; justify-content:space-between; align-items:center; border-top: 1px solid #433878; padding-top: 14px;">
@@ -116,7 +116,7 @@
         if (ackBtn) ackBtn.onclick = saveAndClose;
     }
 
-    // Показ Ченджлога при обновлении (Дизайн CRM)
+    // Показ Ченджлога при обновлении (Только в CRM)
     function checkChangelog() {
         const savedVersion = localStorage.getItem('conversio_version');
         if (!savedVersion) {
@@ -203,13 +203,13 @@
         return `${day.padStart(2, '0')}.${month.padStart(2, '0')}.${year}`;
     }
 
-    // Инициализация вызова Ченджлога / Обучения
-    setTimeout(checkChangelog, 1000);
-
     // 1. ЛОГИКА CRM (ЛЕВАЯ ВКЛАДКА)
     if (window.location.href.includes('jrrgoxf-nreu-rwkhuv.top')) {
         let btn = null;
         let isSuccessState = false;
+
+        // Вызов Обучения/Ченджлога ТОЛЬКО В CRM
+        setTimeout(checkChangelog, 1000);
 
         setInterval(function() {
             let fioIn = document.getElementById('importField-770') || document.querySelector('textarea[data-id="770"]');
