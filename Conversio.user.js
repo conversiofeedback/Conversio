@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Converio - CRM & Sauron ver. (19.1) open beta test
+// @name         Converio - CRM & Sauron ver. (19.1) open beta
 // @namespace    http://tampermonkey.net
 // @version      19.1
 // @description  Умная очистка ФИО (Иванов Иван), ченджлог обновлений, обучение для новичков, адаптивный ховер, СКМ-подсветка.
