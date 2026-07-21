@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Converio - CRM & Sauron ver. (19.3) open beta test
+// @name         Converio - CRM & Sauron ver. (19.4) open beta test
 // @namespace    http://tampermonkey.net
-// @version      19.3
+// @version      19.4
 // @description  Умная очистка ФИО (Иванов Иван), ченджлог обновлений, обучение для новичков, адаптивный ховер, СКМ-подсветка.
 // @match        *://*/*
 // @grant        none
@@ -13,13 +13,13 @@
 (function() {
     'use strict';
 
-    const SCRIPT_VERSION = '19.3';
+    const SCRIPT_VERSION = '19.4';
     const SCRIPT_DESC = 'Умная очистка ФИО (Иванов Иван), ченджлог обновлений, обучение для новичков, адаптивный ховер, СКМ-подсветка.';
     const CHANGELOG_TEXT = [
         '✨ Умная очистка ФИО: автоисправление регистра ("иванов иван" -> "Иванов Иван")',
         '🎯 Сохранена оригинальная буква "Ё/ё" (без автозамены на Е)',
         '🔒 Приветствие и ченджлог отображаются строго в CRM',
-        '📞 В обучении уточнено название программы: MicroSIP',
+        '📐 Исправлена типографика: запрещены разрывы слов на буквах (пои-ск, MicroSI-P)',
         '🧹 Авто-удаление лишних пробелов, спецсимволов и мусора при вставке'
     ];
 
@@ -56,7 +56,8 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 420px;
+            width: 460px;
+            max-width: 90vw;
             background: #2d264f;
             color: #ffffff;
             border: 2px solid #6c5ce7;
@@ -65,6 +66,9 @@
             box-shadow: 0 15px 35px rgba(0,0,0,0.6), 0 0 15px rgba(108, 92, 231, 0.4);
             z-index: 99999999;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            word-break: keep-all;
+            overflow-wrap: break-word;
+            hyphens: none;
         `;
 
         modal.innerHTML = `
@@ -74,18 +78,18 @@
                 </strong>
                 <span id="close-modal-btn" style="cursor:pointer; color:#a29bfe; font-weight:bold; font-size: 20px;">&times;</span>
             </div>
-            <div style="font-size: 13px; line-height: 1.6; color: #dcdde1; margin-bottom: 18px;">
-                <p style="margin-top:0; margin-bottom: 10px;">
+            <div style="font-size: 13px; line-height: 1.6; color: #dcdde1; margin-bottom: 18px; word-break: keep-all;">
+                <p style="margin-top:0; margin-bottom: 12px;">
                     <b>📋 Копирование лида (CRM):</b><br>
-                    Нажми «Копировать ФИО и дату» — данные автоматически улетят в буфер в идеальном формате для Sauron (<code>Фамилия Имя Отчество ДД.ММ.ГГГГ</code>).
+                    Нажми «Копировать ФИО и&nbsp;дату»&nbsp;— данные автоматически улетят в&nbsp;буфер в&nbsp;идеальном формате для Sauron (<code>Фамилия Имя Отчество ДД.ММ.ГГГГ</code>).
                 </p>
-                <p style="margin-bottom: 10px;">
+                <p style="margin-bottom: 12px;">
                     <b>🔍 Мгновенный пробив (Sauron):</b><br>
-                    Кнопка «Вставить и пробить клиента» автоматически очистит текст от опечаток/мусора, вставит его и сразу запустит поиск.
+                    Кнопка «Вставить и&nbsp;пробить клиента» автоматически очистит текст от&nbsp;опечаток/мусора, вставит его и&nbsp;сразу запустит поиск.
                 </p>
                 <p style="margin-bottom: 0;">
                     <b>📞 Быстрый звонок (Sauron):</b><br>
-                    Наведи курсор на номер телефона и <b>нажми на колесико мыши (СКМ)</b> — номер подсветится и перенаправится в MicroSIP.
+                    Наведи курсор на&nbsp;номер телефона и&nbsp;<b>нажми на&nbsp;колесико мыши (СКМ)</b>&nbsp;— номер подсветится и&nbsp;перенаправится в&nbsp;MicroSIP.
                 </p>
             </div>
             <div style="display:flex; justify-content:space-between; align-items:center; border-top: 1px solid #433878; padding-top: 14px;">
@@ -137,7 +141,8 @@
             position: fixed;
             bottom: 24px;
             right: 24px;
-            width: 360px;
+            width: 380px;
+            max-width: 90vw;
             background: #2d264f;
             color: #ffffff;
             border: 2px solid #6c5ce7;
@@ -146,6 +151,8 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.6), 0 0 12px rgba(108, 92, 231, 0.3);
             z-index: 99999999;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            word-break: keep-all;
+            overflow-wrap: break-word;
         `;
 
         let listHtml = CHANGELOG_TEXT.map(item => `<li style="margin-bottom: 6px; font-size: 12px; line-height: 1.4; color: #dcdde1;">${item}</li>`).join('');
