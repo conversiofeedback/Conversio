@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Converio - CRM & Sauron ver. (19.5) open beta test
+// @name         Converio - CRM & Sauron ver. (19.8) Release
 // @namespace    http://tampermonkey.net
-// @version      19.5
+// @version      19.8
 // @description  Умная очистка ФИО, ченджлог обновлений, красивое форматирование текста без переноса букв.
 // @match        *://*/*
 // @grant        none
@@ -13,10 +13,11 @@
 (function() {
     'use strict';
 
-    const SCRIPT_VERSION = '19.5';
+    const SCRIPT_VERSION = '19.8';
     const SCRIPT_DESC = 'Умная очистка ФИО, ченджлог обновлений, красивое форматирование текста.';
     const CHANGELOG_TEXT = [
-        '📐 Исправлена типографика: запрещены переносы слов по буквам (MicroSIP, поиск)',
+        '🎉 Скрипт вышел из беты в полноценный релиз!',
+        '📐 Исправлена типографика',
         '✨ Улучшена логика первого показа обучения и сохранения галочки',
         '🎯 Сохранена оригинальная буква "Ё/ё"',
         '🔒 Приветствие и ченджлог отображаются строго в CRM',
@@ -45,7 +46,6 @@
 
     // Показ Обучения (Только в CRM)
     function showTutorialModal() {
-        // Если пользователь поставил галочку "больше не показывать" — выходим
         if (localStorage.getItem('conversio_hide_tutorial') === 'true') return;
         if (document.getElementById('conversio-modal')) return;
 
@@ -89,7 +89,7 @@
                 </p>
                 <p style="margin-bottom: 0;">
                     <b>📞 Быстрый звонок (Sauron):</b><br>
-                    Наведи курсор на&nbsp;номер телефона и&nbsp;<b>нажми на&nbsp;колесико мыши (СКМ)</b>&nbsp;— номер подсветится и&nbsp;перенаправится в&nbsp;MicroSIP.
+                    Наведи курсор на&nbsp;номер телефона и&nbsp;<b>нажми на&nbsp;колесико мыши&nbsp;<span style="white-space:nowrap;">(СКМ)</span></b>&nbsp;— номер подсветится и&nbsp;перенаправится в&nbsp;MicroSIP.
                 </p>
             </div>
             <div style="display:flex; justify-content:space-between; align-items:center; border-top: 1px solid #433878; padding-top: 14px;">
@@ -124,17 +124,14 @@
     function checkChangelog() {
         const savedVersion = localStorage.getItem('conversio_version');
         
-        // Самый первый запуск скрипта
         if (!savedVersion) {
             showTutorialModal();
             localStorage.setItem('conversio_version', SCRIPT_VERSION);
         } else if (savedVersion !== SCRIPT_VERSION) {
-            // При обновлении версии показываем ченджлог (и обучение, если галочка НЕ стояла)
             showTutorialModal();
             showChangelogModal();
             localStorage.setItem('conversio_version', SCRIPT_VERSION);
         } else {
-            // Обычная загрузка той же версии — покажет обучение только если НЕ было галочки "Больше не показывать"
             showTutorialModal();
         }
     }
