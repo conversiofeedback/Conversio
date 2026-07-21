@@ -6,8 +6,8 @@
 // @match        *://*/*
 // @grant        none
 // @run-at       document-end
-// @updateURL    https://raw.githubusercontent.com/conversiofeedback/Conversio/main/Conversio.user.js?token=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
-// @downloadURL  https://raw.githubusercontent.com/conversiofeedback/Conversio/main/Conversio.user.js?token=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
+// @updateURL    https://raw.githubusercontent.com/conversiofeedback/Conversio/main/Conversio.user.js
+// @downloadURL  https://raw.githubusercontent.com/conversiofeedback/Conversio/main/Conversio.user.js
 // ==/UserScript==
 
 (function() {
