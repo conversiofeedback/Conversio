@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Converio - CRM & Sauron ver. (20.0) Release
+// @name         Conversio - CRM & Sauron ver. (20.0) Release
 // @namespace    http://tampermonkey.net
 // @version      20.0
 // @description  Умная очистка ФИО, ченджлог обновлений, красивое форматирование текста без переноса букв.
