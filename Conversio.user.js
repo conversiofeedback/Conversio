@@ -1,50 +1,123 @@
 // ==UserScript==
-// @name         Conversio - CRM & Sauron ver. (20.0) Release
-// @namespace    http://tampermonkey.net
-// @version      20.0
-// @description  Умная очистка ФИО, ченджлог обновлений, красивое форматирование текста без переноса букв.
-// @match        *://*/*
-// @grant        none
-// @run-at       document-end
-// @updateURL    https://raw.githubusercontent.com/conversiofeedback/Conversio/main/Conversio.user.js
-// @downloadURL  https://raw.githubusercontent.com/conversiofeedback/Conversio/main/Conversio.user.js
+// @name        Conversio - CRM & Sauron ver. (20.1) Release
+// @namespace   http://tampermonkey.net
+// @version     20.1
+// @description Фоновая проверка обновлений, копирование ФИО и даты рождения.
+// @match       *://*/*
+// @grant       GM_xmlhttpRequest
+// @connect     raw.githubusercontent.com
+// @run-at      document-end
+// @updateURL   https://raw.githubusercontent.com/conversiofeedback/Conversio/main/Conversio.user.js
+// @downloadURL https://raw.githubusercontent.com/conversiofeedback/Conversio/main/Conversio.user.js
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const SCRIPT_VERSION = '20.0';
-    const SCRIPT_DESC = 'Умная очистка ФИО, ченджлог обновлений, красивое форматирование текста.';
+    const SCRIPT_VERSION = '20.1';
+    const SCRIPT_DESC = 'Фоновая проверка обновлений, копирование ФИО и даты рождения.';
+    const RAW_SCRIPT_URL = 'https://raw.githubusercontent.com/conversiofeedback/Conversio/main/Conversio.user.js';
+    
+    // 4 часа (в миллисекундах) + случайный разброс от -15 до +15 минут для распределения нагрузки
+    const BASE_INTERVAL = 4 * 60 * 60 * 1000;
+    const RANDOM_JITTER = (Math.random() * 30 - 15) * 60 * 1000;
+    const CHECK_INTERVAL = BASE_INTERVAL + RANDOM_JITTER;
+
     const CHANGELOG_TEXT = [
         '🎉 Скрипт вышел из беты в полноценный релиз!',
-        '📐 Исправлена типографика',
-        '✨ Улучшена логика первого показа обучения и сохранения галочки',
-        '🎯 Сохранена оригинальная буква "Ё/ё"',
-        '🔒 Приветствие и ченджлог отображаются строго в CRM',
-        '🧹 Авто-удаление лишних пробелов, спецсимволов и мусора при вставке'
+        '🔄 Добавлена фоновая проверка обновлений',
+        '🔔 Появление умного баннера при выходе новой версии',
+        '📐 Улучшено форматирование текста и защита от переноса слов'
     ];
 
     let crmTimeoutHold = null;
     let crmTimeoutFade = null;
 
-    // Функция Умной Очистки и Форматирования Текста
-    function smartCleanText(str) {
-        if (!str) return '';
-        
-        let clean = str.trim();
-        clean = clean.replace(/[^\w\s\d\-А-Яа-яЁё\.]/gi, ' ');
-        clean = clean.replace(/\s+/g, ' ').trim();
+    // --- БЛОК АВТОМАТИЧЕСКОЙ ПРОВЕРКИ ОБНОВЛЕНИЙ ---
+    function checkAutoUpdate() {
+        const lastCheck = parseInt(localStorage.getItem('conversio_last_update_check') || '0', 10);
+        const now = Date.now();
 
-        clean = clean.split(' ').map(word => {
-            if (!word) return '';
-            if (/^\d[\d\.]+\d$/.test(word)) return word;
-            return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-        }).join(' ');
+        if (now - lastCheck < CHECK_INTERVAL) return;
 
-        return clean;
+        localStorage.setItem('conversio_last_update_check', now.toString());
+
+        GM_xmlhttpRequest({
+            method: 'GET',
+            url: RAW_SCRIPT_URL + '?t=' + now,
+            onload: function(response) {
+                if (response.status === 200) {
+                    const remoteText = response.responseText;
+                    const versionMatch = remoteText.match(/\/\/\s*@version\s+([\d\.]+)/);
+                    
+                    if (versionMatch && versionMatch[1]) {
+                        const remoteVersion = versionMatch[1].trim();
+                        
+                        if (parseFloat(remoteVersion) > parseFloat(SCRIPT_VERSION)) {
+                            showUpdateBanner(remoteVersion);
+                        }
+                    }
+                }
+            }
+        });
     }
 
-    // Показ Обучения (Только в CRM)
+    function showUpdateBanner(newVersion) {
+        if (document.getElementById('conversio-update-banner')) return;
+
+        const banner = document.createElement('div');
+        banner.id = 'conversio-update-banner';
+        banner.style = `
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 99999999;
+            background: #2d264f;
+            color: #ffffff;
+            border: 2px solid #10b981;
+            border-radius: 8px;
+            padding: 12px 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5), 0 0 10px rgba(16, 185, 129, 0.3);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: fadeIn 0.3s ease;
+        `;
+
+        banner.innerHTML = `
+            <div>
+                🚀 Доступна версия <b>${newVersion}</b>!
+            </div>
+            <button id="conversio-update-btn" style="background:#10b981; border:none; color:#fff; padding: 6px 12px; border-radius: 5px; font-weight:bold; font-size: 12px; cursor:pointer; transition: background 0.2s;">
+                Обновить
+            </button>
+            <span id="conversio-close-banner" style="cursor:pointer; color:#a29bfe; font-weight:bold; font-size: 16px; margin-left: 4px;">&times;</span>
+        `;
+
+        document.body.appendChild(banner);
+
+        const updateBtn = document.getElementById('conversio-update-btn');
+        const closeBtn = document.getElementById('conversio-close-banner');
+
+        updateBtn.onclick = () => {
+            window.location.href = RAW_SCRIPT_URL;
+            banner.remove();
+        };
+
+        closeBtn.onclick = () => {
+            banner.remove();
+        };
+    }
+
+    checkAutoUpdate();
+
+    function smartCleanText(str) {
+        if (!str) return '';
+        return str.trim();
+    }
+
     function showTutorialModal() {
         if (localStorage.getItem('conversio_hide_tutorial') === 'true') return;
         if (document.getElementById('conversio-modal')) return;
@@ -86,7 +159,7 @@
                 </p>
                 <p style="margin-bottom: 12px;">
                     <b>🔍 Мгновенный пробив (Sauron):</b><br>
-                    Кнопка «Вставить и&nbsp;пробить клиента» автоматически очистит текст от&nbsp;опечаток/мусора, вставит его и&nbsp;сразу запустит поиск.
+                    Кнопка «Вставить и&nbsp;пробить клиента» автоматически вставит текст и&nbsp;сразу запустит поиск.
                 </p>
                 <p style="margin-bottom: 0;">
                     <b>📞 Быстрый звонок (Sauron):</b><br>
@@ -121,7 +194,6 @@
         if (ackBtn) ackBtn.onclick = saveAndClose;
     }
 
-    // Проверка первого запуска или обновления
     function checkChangelog() {
         const savedVersion = localStorage.getItem('conversio_version');
         
@@ -188,7 +260,6 @@
         if (ackBtn) ackBtn.onclick = removeModal;
     }
 
-    // Внедряем стили CRM
     const style = document.createElement('style');
     style.innerHTML = '@keyframes sFl{0%,100%{transform:scale(1) rotate(-1deg);opacity:0.9}50%{transform:scale(1.15) rotate(2deg);opacity:1;filter:drop-shadow(0 0 3px #ffd700)}}.sauron-cake-wrap{display:block;margin-top:6px;margin-left:2px;}.s-ck{display:inline-flex;align-items:flex-end;position:relative;width:22px;height:22px;vertical-align:middle;}.s-cb{position:absolute;bottom:0;width:22px;height:11px;background:#ff6496;border-radius:3px 3px 1px 1px;box-shadow:inset 0 -2px 0 #e6467d,0 1px 2px rgba(0,0,0,0.2)}.s-cc{position:absolute;bottom:7px;width:22px;height:2px;background:#fff;border-radius:1px}.s-cd{position:absolute;bottom:11px;width:2px;height:5px;background:#00e5ff;border-radius:1px}.s-cd:nth-child(1){left:3px}.s-cd:nth-child(2){left:10px;background:#ffdf00}.s-cd:nth-child(3){left:17px}.s-fm{position:absolute;top:-4px;left:-1px;width:4px;height:4px;background:#ff5722;border-radius:50% 50% 20% 20%;transform-origin:bottom center;animation:sFl .5s infinite ease-in-out}.s-cd:nth-child(2) .s-fm{animation-delay:.1s;background:#ff9800}.s-cd:nth-child(3) .s-fm{animation-delay:.2s}';
     document.head.appendChild(style);
@@ -308,8 +379,7 @@
                     e.preventDefault();
                     if (fioIn.value && dateIn.value) {
                         const formattedDate = convertDate(dateIn.value);
-                        const rawData = `${fioIn.value.trim()} ${formattedDate}`;
-                        const finalData = smartCleanText(rawData);
+                        const finalData = `${fioIn.value.trim()} ${formattedDate}`;
 
                         navigator.clipboard.writeText(finalData).then(() => {
                             clearTimeout(crmTimeoutHold);
@@ -368,14 +438,13 @@
             btn.style.borderColor = isLightTheme() ? '#B3461B' : '#E26833';
         }
 
-        // Подсветка номеров СКМ
         document.addEventListener('mousedown', function(e) {
             if (e.button === 1) {
                 const target = e.target;
                 if (!target) return;
 
                 const isPhoneElement = (target.classList && target.classList.contains('rh-text')) ||
-                                        (/^\+?[\d\s\-\(\)]+$/.test(target.innerText.trim()) && target.innerText.trim().length >= 10);
+                                       (/^\+?[\d\s\-\(\)]+$/.test(target.innerText.trim()) && target.innerText.trim().length >= 10);
 
                 if (isPhoneElement) {
                     let rawPhone = target.innerText.trim();
@@ -401,7 +470,6 @@
             }
         });
 
-        // Перехват Enter с умной очисткой
         document.addEventListener('keydown', function(e) {
             const sIn = document.getElementById('search') || document.querySelector('input[name="query"]');
 
