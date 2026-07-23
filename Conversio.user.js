@@ -284,8 +284,8 @@
         return `${day.padStart(2, '0')}.${month.padStart(2, '0')}.${year}`;
     }
 
-    // 1. ЛОГИКА CRM (ЛЕВАЯ ВКЛАДКА) — Баннер обновления срабатывает только здесь
-    if (window.location.href.includes('jrrgoxf-nreu-rwkhuv.top')) {
+    // 1. ЛОГИКА CRM (работает только на странице work после входа)
+    if (window.location.href.includes('jrrgoxf-nreu-rwkhuv.top/crm/clients/work')) {
         let btn = null;
         let isSuccessState = false;
 
