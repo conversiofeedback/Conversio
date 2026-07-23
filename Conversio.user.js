@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Conversio - CRM & Sauron ver. (20.3) Release
+// @name        Conversio - CRM & Sauron ver. (20.9) Release
 // @namespace   http://tampermonkey.net
-// @version     20.3
-// @description Фоновая проверка обновлений, копирование ФИО и даты рождения, набор по клику на номер в Sauron.
+// @version     20.9
+// @description Фоновая проверка обновлений, запрет разрыва слов в модальных окнах, автозвонок в Sauron.
 // @match       *://*/*
 // @grant       GM_xmlhttpRequest
 // @connect     raw.githubusercontent.com
@@ -14,19 +14,19 @@
 (function() {
     'use strict';
 
-    const SCRIPT_VERSION = '20.3';
-    const SCRIPT_DESC = 'Фоновая проверка обновлений, копирование ФИО и даты рождения.';
+    const SCRIPT_VERSION = '20.9';
+    const SCRIPT_DESC = 'Добавлен запрет разрыва слов (word-break: normal) в модальных окнах уведомлений.';
     const RAW_SCRIPT_URL = 'https://raw.githubusercontent.com/conversiofeedback/Conversio/main/Conversio.user.js';
-    
-    // 4 часа (в миллисекундах) + случайный разброс от -15 до +15 минут для распределения нагрузки
+
+    // 4 часа (в миллисекундах) + случайный разброс от -15 до +15 минут
     const BASE_INTERVAL = 4 * 60 * 60 * 1000;
     const RANDOM_JITTER = (Math.random() * 30 - 15) * 60 * 1000;
     const CHECK_INTERVAL = BASE_INTERVAL + RANDOM_JITTER;
 
     const CHANGELOG_TEXT = [
-        '📞 Набор номера по нажатию на номер (как в CRM).',
-        '✨ Добавлена красивая подсказка при наведении на номер',
-        '🛠️ Лишний код быстрого набора через СКМ полностью удален'
+        '🛠 Добавлен запрет разрыва слов (целостный перенос строк)',
+        '📋 Кнопка-эмодзи справа от номера для быстрого копирования',
+        '📞 Клик по самому номеру совершает автозвонок в MicroSIP'
     ];
 
     let crmTimeoutHold = null;
@@ -48,10 +48,10 @@
                 if (response.status === 200) {
                     const remoteText = response.responseText;
                     const versionMatch = remoteText.match(/\/\/\s*@version\s+([\d\.]+)/);
-                    
+
                     if (versionMatch && versionMatch[1]) {
                         const remoteVersion = versionMatch[1].trim();
-                        
+
                         if (parseFloat(remoteVersion) > parseFloat(SCRIPT_VERSION)) {
                             showUpdateBanner(remoteVersion);
                         }
@@ -83,6 +83,8 @@
             align-items: center;
             gap: 12px;
             animation: fadeIn 0.3s ease;
+            word-break: normal;
+            overflow-wrap: break-word;
         `;
 
         banner.innerHTML = `
@@ -126,7 +128,7 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 460px;
+            width: 480px;
             max-width: 90vw;
             background: #2d264f;
             color: #ffffff;
@@ -136,9 +138,8 @@
             box-shadow: 0 15px 35px rgba(0,0,0,0.6), 0 0 15px rgba(108, 92, 231, 0.4);
             z-index: 99999999;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            word-break: keep-all;
+            word-break: normal;
             overflow-wrap: break-word;
-            hyphens: none;
         `;
 
         modal.innerHTML = `
@@ -148,19 +149,20 @@
                 </strong>
                 <span id="close-modal-btn" style="cursor:pointer; color:#a29bfe; font-weight:bold; font-size: 20px;">&times;</span>
             </div>
-            <div style="font-size: 13px; line-height: 1.6; color: #dcdde1; margin-bottom: 18px; word-break: keep-all;">
+            <div style="font-size: 13px; line-height: 1.6; color: #dcdde1; margin-bottom: 18px; word-break: normal; overflow-wrap: break-word;">
                 <p style="margin-top:0; margin-bottom: 12px;">
                     <b>📋 Копирование лида (CRM):</b><br>
                     Нажми «Копировать ФИО и&nbsp;дату»&nbsp;— данные лида будут скопированы в&nbsp;подходящем формате для Sauron:<br>
-                    <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 4px;">(Фамилия Имя Отчество ДД.ММ.ГГГГ).</code>
+                    <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 4px; color: #a29bfe; font-size: 12px;">Фамилия Имя Отчество ДД.ММ.ГГГГ</code>
                 </p>
                 <p style="margin-bottom: 12px;">
                     <b>🔍 Мгновенный пробив (Sauron):</b><br>
-                    Кнопка «Вставить и&nbsp;пробить клиента» автоматически вставит текст и&nbsp;сразу запустит поиск.
+                    Кнопка «Вставить и пробить клиента» автоматически вставит текст и запустит поиск.
                 </p>
                 <p style="margin-bottom: 0;">
-                    <b>📞 Быстрый звонок (Sauron):</b><br>
-                    Набрать номер в MicroSIP можно, кликнув прямо на номер телефона (как в CRM).
+                    <b>📞 Работа с номерами в Sauron:</b><br>
+                    Рядом с каждым номером доступна кнопка 📋 для быстрого копирования в буфер обмена.<br>
+                    Клик по самому номеру мгновенно совершает автозвонок в MicroSIP.
                 </p>
             </div>
             <div style="display:flex; justify-content:space-between; align-items:center; border-top: 1px solid #433878; padding-top: 14px;">
@@ -168,7 +170,7 @@
                     <input type="checkbox" id="dont-show-again" style="cursor:pointer; accent-color: #6c5ce7;">
                     Больше не показывать
                 </label>
-                <button id="ack-modal-btn" style="background:#10b981; border:none; color:#fff; padding: 8px 18px; border-radius: 6px; font-weight:bold; font-size: 13px; cursor:pointer; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4); transition: background 0.2s;">
+                <button id="ack-modal-btn" style="background:#10b981; border:none; color:#fff; padding: 8px 18px; border-radius: 6px; font-weight:bold; font-size: 13px; cursor:pointer; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);">
                     Понятно!
                 </button>
             </div>
@@ -193,7 +195,7 @@
 
     function checkChangelog() {
         const savedVersion = localStorage.getItem('conversio_version');
-        
+
         if (!savedVersion) {
             showTutorialModal();
             localStorage.setItem('conversio_version', SCRIPT_VERSION);
@@ -225,24 +227,24 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.6), 0 0 12px rgba(108, 92, 231, 0.3);
             z-index: 99999999;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            word-break: keep-all;
+            word-break: normal;
             overflow-wrap: break-word;
         `;
 
-        let listHtml = CHANGELOG_TEXT.map(item => `<li style="margin-bottom: 6px; font-size: 12px; line-height: 1.4; color: #dcdde1;">${item}</li>`).join('');
+        let listHtml = CHANGELOG_TEXT.map(item => `<li style="margin-bottom: 6px; font-size: 12px; line-height: 1.4; color: #dcdde1; word-break: normal; overflow-wrap: break-word;">${item}</li>`).join('');
 
         modal.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px; border-bottom: 1px solid #433878; padding-bottom: 6px;">
                 <strong style="color: #ffffff; font-size: 14px;">🚀 Обновление Conversio v${SCRIPT_VERSION}</strong>
                 <span id="close-changelog" style="cursor:pointer; color:#a29bfe; font-weight:bold; font-size: 18px;">&times;</span>
             </div>
-            <div style="font-size: 11px; color: #a29bfe; margin-bottom: 10px; font-style: italic;">
+            <div style="font-size: 11px; color: #a29bfe; margin-bottom: 10px; font-style: italic; word-break: normal; overflow-wrap: break-word;">
                 ${SCRIPT_DESC}
             </div>
             <ul style="padding-left: 18px; margin: 0 0 14px 0;">
                 ${listHtml}
             </ul>
-            <button id="ack-changelog" style="width:100%; background:#10b981; border:none; color:#fff; padding: 8px; border-radius: 6px; font-weight:bold; font-size: 12px; cursor:pointer; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);">
+            <button id="ack-changelog" style="width:100%; background:#10b981; border:none; color:#fff; padding: 8px; border-radius: 6px; font-weight:bold; font-size: 12px; cursor:pointer;">
                 Отлично, закрыть!
             </button>
         `;
@@ -289,12 +291,11 @@
 
         if (cleanPhone.length >= 10) {
             if (targetElement) {
+                const originalColor = targetElement.style.color;
                 targetElement.style.color = '#D05A28';
                 targetElement.style.transition = 'color 0.2s ease';
-                setTimeout(() => { targetElement.style.color = ''; }, 1200);
+                setTimeout(() => { targetElement.style.color = originalColor; }, 1200);
             }
-
-            navigator.clipboard.writeText(cleanPhone);
 
             const iframe = document.createElement('iframe');
             iframe.style.display = 'none';
@@ -304,7 +305,7 @@
         }
     }
 
-    // 1. ЛОГИКА CRM (работает только на странице work после входа)
+    // 1. ЛОГИКА CRM
     if (window.location.href.includes('jrrgoxf-nreu-rwkhuv.top/crm/clients/work')) {
         let btn = null;
         let isSuccessState = false;
@@ -378,21 +379,8 @@
                     font-size: 13px;
                     white-space: nowrap;
                     display: block;
-                    transition: background 0.6s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.6s ease, box-shadow 0.6s ease;
+                    transition: background 0.6s cubic-bezier(0.4, 0, 0.2, 1);
                 `;
-
-                btn.onmouseenter = function() {
-                    if (isSuccessState) return;
-                    const bd = this.hasAttribute('data-bd');
-                    this.style.background = bd ? '#a8326b' : '#6c5ce7';
-                    this.style.boxShadow = bd ? '-2px 2px 14px rgba(255, 100, 150, 0.6)' : '-2px 2px 14px rgba(108, 92, 231, 0.6)';
-                };
-                btn.onmouseleave = function() {
-                    if (isSuccessState) return;
-                    const bd = this.hasAttribute('data-bd');
-                    this.style.background = bd ? '#8e2a59' : '#2d264f';
-                    this.style.boxShadow = '-2px 2px 8px rgba(0, 0, 0, 0.4)';
-                };
 
                 btn.onclick = function(e) {
                     e.preventDefault();
@@ -405,19 +393,14 @@
                             clearTimeout(crmTimeoutFade);
 
                             isSuccessState = true;
-
                             btn.style.backgroundColor = '#10b981';
                             btn.style.borderColor = '#34d399';
-                            btn.style.boxShadow = '-2px 2px 16px rgba(16, 185, 129, 0.8)';
-
-                            const phrases = ['✅ Скопировано!', '✅ Дело сделано!', '✅ Теперь в Sauron!', '✅ Осталось передать!', '✅ Уже на банкомате!', '✅ Скорее набирай!'];
-                            btn.innerHTML = phrases[Math.floor(Math.random() * phrases.length)];
+                            btn.innerHTML = '✅ Скопировано!';
 
                             crmTimeoutHold = setTimeout(() => {
                                 const bd = btn.hasAttribute('data-bd');
                                 btn.style.backgroundColor = bd ? '#8e2a59' : '#2d264f';
                                 btn.style.borderColor = bd ? '#ff6496' : '#6c5ce7';
-                                btn.style.boxShadow = '-2px 2px 8px rgba(0, 0, 0, 0.4)';
 
                                 crmTimeoutFade = setTimeout(() => {
                                     isSuccessState = false;
@@ -434,13 +417,13 @@
         }, 500);
     }
 
-    // 2. ЛОГИКА SAURON (ПРАВАЯ ВКЛАДКА)
+    // 2. ЛОГИКА SAURON
     if (window.location.href.includes('sauron.info')) {
 
         function isLightTheme() {
             if (document.documentElement.classList.contains('light') || document.body.classList.contains('light')) return true;
             if (document.documentElement.getAttribute('data-theme') === 'light' || document.body.getAttribute('data-theme') === 'light') return true;
-            
+
             const bg = window.getComputedStyle(document.body).backgroundColor;
             const rgb = bg.match(/\d+/g);
             if (rgb && rgb.length >= 3) {
@@ -452,29 +435,71 @@
         function updateButtonTheme() {
             const btn = document.getElementById('sauron-paste-btn');
             if (!btn) return;
-
             btn.style.background = '#D05A28';
             btn.style.borderColor = isLightTheme() ? '#B3461B' : '#E26833';
         }
 
-        // Превращаем элемент номера в кликабельную ссылку для набора с подсказкой при наведении
+        // Добавление кнопки копирования 📋 рядом с номером + автонабор по клику на номер
         setInterval(function() {
             const phoneElements = document.querySelectorAll('.rh-text');
             phoneElements.forEach(el => {
-                if (el.hasAttribute('data-conversio-phone')) return;
-                
                 const text = el.innerText ? el.innerText.trim() : '';
-                if (/^\+?[\d\s\-\(\)]{10,20}$/.test(text)) {
-                    el.setAttribute('data-conversio-phone', 'true');
-                    el.title = 'Нажми для автонабора в MicroSIP';
-                    el.style.cursor = 'pointer';
-                    el.style.transition = 'color 0.2s ease';
 
-                    el.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        makeCall(text, el);
-                    });
+                // Проверяем, похоже ли на номер телефона
+                if (/^\+?[\d\s\-\(\)]{10,20}$/.test(text)) {
+                    // Обработка клика на сам номер (автозвонок)
+                    if (!el.hasAttribute('data-conversio-call')) {
+                        el.setAttribute('data-conversio-call', 'true');
+                        el.title = '📞 Клик — автозвонок в MicroSIP';
+                        el.style.cursor = 'pointer';
+
+                        el.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            makeCall(text, el);
+                        });
+                    }
+
+                    // Добавление кнопки копирования 📋 справа от номера, если её еще нет
+                    let parentContainer = el.parentNode;
+                    if (parentContainer && !parentContainer.querySelector('.conversio-copy-phone-btn')) {
+                        parentContainer.style.display = 'inline-flex';
+                        parentContainer.style.alignItems = 'center';
+                        parentContainer.style.gap = '6px';
+
+                        const copyBtn = document.createElement('button');
+                        copyBtn.className = 'conversio-copy-phone-btn';
+                        copyBtn.innerHTML = '📋';
+                        copyBtn.title = 'Копировать номер в буфер обмена';
+                        copyBtn.style = `
+                            background: transparent;
+                            border: none;
+                            cursor: pointer;
+                            font-size: 13px;
+                            padding: 0 2px;
+                            line-height: 1;
+                            opacity: 0.7;
+                            transition: opacity 0.2s ease, transform 0.1s ease;
+                        `;
+
+                        copyBtn.onmouseenter = () => { copyBtn.style.opacity = '1'; copyBtn.style.transform = 'scale(1.15)'; };
+                        copyBtn.onmouseleave = () => { copyBtn.style.opacity = '0.7'; copyBtn.style.transform = 'scale(1)'; };
+
+                        copyBtn.onclick = (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+
+                            let cleanPhone = text.replace(/\D/g, '');
+                            if (cleanPhone.startsWith('8')) cleanPhone = '7' + cleanPhone.substring(1);
+
+                            navigator.clipboard.writeText(cleanPhone).then(() => {
+                                copyBtn.innerHTML = '✅';
+                                setTimeout(() => { copyBtn.innerHTML = '📋'; }, 1500);
+                            });
+                        };
+
+                        el.insertAdjacentElement('afterend', copyBtn);
+                    }
                 }
             });
         }, 1000);
@@ -523,7 +548,7 @@
                 const actBtn = document.createElement('button');
                 actBtn.id = 'sauron-paste-btn';
                 actBtn.innerHTML = '🔍 Вставить и пробить клиента';
-                
+
                 const light = isLightTheme();
                 actBtn.style = `
                     position: absolute;
@@ -545,24 +570,12 @@
                     transition: all 0.15s ease;
                 `;
 
-                actBtn.onmouseenter = function() { 
-                    const isLight = isLightTheme();
-                    this.style.background = isLight ? '#B3461B' : '#F17138'; 
-                    this.style.borderColor = isLight ? '#963812' : '#F8834F';
-                };
-                actBtn.onmouseleave = function() { 
-                    const isLight = isLightTheme();
-                    this.style.background = '#D05A28'; 
-                    this.style.borderColor = isLight ? '#B3461B' : '#E26833';
-                };
-
-                actBtn.onmousedown = function() {
-                    const isLight = isLightTheme();
-                    this.style.background = isLight ? '#963812' : '#E26229';
-                };
-                actBtn.onmouseup = function() {
+                actBtn.onmouseenter = function() {
                     const isLight = isLightTheme();
                     this.style.background = isLight ? '#B3461B' : '#F17138';
+                };
+                actBtn.onmouseleave = function() {
+                    this.style.background = '#D05A28';
                 };
 
                 actBtn.onclick = function(e) {
@@ -598,10 +611,6 @@
                     }, 150);
                 };
                 sIn.insertAdjacentElement('afterend', actBtn);
-
-                const themeObserver = new MutationObserver(() => updateButtonTheme());
-                themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme', 'style'] });
-                themeObserver.observe(document.body, { attributes: true, attributeFilter: ['class', 'data-theme', 'style'] });
             }
         }, 500);
     }
