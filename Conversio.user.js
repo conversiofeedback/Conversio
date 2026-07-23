@@ -111,8 +111,6 @@
         };
     }
 
-    checkAutoUpdate();
-
     function smartCleanText(str) {
         if (!str) return '';
         return str.trim();
@@ -291,6 +289,7 @@
         let btn = null;
         let isSuccessState = false;
 
+        checkAutoUpdate();
         setTimeout(checkChangelog, 1000);
 
         setInterval(function() {
@@ -562,7 +561,7 @@
                     navigator.clipboard.readText().then(text => {
                         const rawText = text ? text.trim() : '';
                         if (rawText) {
-                            const cleanText = smartCleanText(rawText);
+                            const cleanText = smartCleanTest(rawText);
 
                             sIn.focus();
                             sIn.value = cleanText;
