@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Conversio - CRM & Sauron ver. (20.2) Release
+// @name        Conversio - CRM & Sauron ver. (20.3) Release
 // @namespace   http://tampermonkey.net
-// @version     20.2
-// @description Фоновая проверка обновлений, копирование ФИО и даты рождения.
+// @version     20.3
+// @description Фоновая проверка обновлений, копирование ФИО и даты рождения, набор по клику на номер в Sauron.
 // @match       *://*/*
 // @grant       GM_xmlhttpRequest
 // @connect     raw.githubusercontent.com
@@ -14,7 +14,7 @@
 (function() {
     'use strict';
 
-    const SCRIPT_VERSION = '20.2';
+    const SCRIPT_VERSION = '20.3';
     const SCRIPT_DESC = 'Фоновая проверка обновлений, копирование ФИО и даты рождения.';
     const RAW_SCRIPT_URL = 'https://raw.githubusercontent.com/conversiofeedback/Conversio/main/Conversio.user.js';
     
@@ -24,10 +24,9 @@
     const CHECK_INTERVAL = BASE_INTERVAL + RANDOM_JITTER;
 
     const CHANGELOG_TEXT = [
-        '🎉 Скрипт вышел из беты в полноценный релиз!',
-        '🔄 Добавлена фоновая проверка обновлений',
-        '🔔 Появление умного баннера при выходе новой версии',
-        '🛠️ Исправлена проблема с доступом к буферу обмена'
+        '📞 Набор номера по нажатию на номер (как в CRM).',
+        '✨ Добавлена красивая подсказка при наведении на номер',
+        '🛠️ Лишний код быстрого набора через СКМ полностью удален'
     ];
 
     let crmTimeoutHold = null;
@@ -161,7 +160,7 @@
                 </p>
                 <p style="margin-bottom: 0;">
                     <b>📞 Быстрый звонок (Sauron):</b><br>
-                    Наведи курсор на&nbsp;номер телефона и&nbsp;нажми на&nbsp;колесико&nbsp;мыши&nbsp;<span style="white-space:nowrap;">(СКМ)</span>&nbsp;— номер подсветится и&nbsp;будет автоматически набран в&nbsp;MicroSIP.
+                    Набрать номер в MicroSIP можно, кликнув прямо на номер телефона (как в CRM).
                 </p>
             </div>
             <div style="display:flex; justify-content:space-between; align-items:center; border-top: 1px solid #433878; padding-top: 14px;">
@@ -282,6 +281,27 @@
             day = parts[0]; month = parts[1]; year = parts[2];
         }
         return `${day.padStart(2, '0')}.${month.padStart(2, '0')}.${year}`;
+    }
+
+    function makeCall(rawPhone, targetElement) {
+        let cleanPhone = rawPhone.replace(/\D/g, '');
+        if (cleanPhone.startsWith('8')) cleanPhone = '7' + cleanPhone.substring(1);
+
+        if (cleanPhone.length >= 10) {
+            if (targetElement) {
+                targetElement.style.color = '#D05A28';
+                targetElement.style.transition = 'color 0.2s ease';
+                setTimeout(() => { targetElement.style.color = ''; }, 1200);
+            }
+
+            navigator.clipboard.writeText(cleanPhone);
+
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = `sip:${cleanPhone}`;
+            document.body.appendChild(iframe);
+            setTimeout(() => { document.body.removeChild(iframe); }, 300);
+        }
     }
 
     // 1. ЛОГИКА CRM (работает только на странице work после входа)
@@ -414,7 +434,7 @@
         }, 500);
     }
 
-    // 2. ЛОГИКА SAURON (ПРАВАЯ ВКЛАДКА) — Проверка обновлений здесь не запускается
+    // 2. ЛОГИКА SAURON (ПРАВАЯ ВКЛАДКА)
     if (window.location.href.includes('sauron.info')) {
 
         function isLightTheme() {
@@ -437,37 +457,27 @@
             btn.style.borderColor = isLightTheme() ? '#B3461B' : '#E26833';
         }
 
-        document.addEventListener('mousedown', function(e) {
-            if (e.button === 1) {
-                const target = e.target;
-                if (!target) return;
+        // Превращаем элемент номера в кликабельную ссылку для набора с подсказкой при наведении
+        setInterval(function() {
+            const phoneElements = document.querySelectorAll('.rh-text');
+            phoneElements.forEach(el => {
+                if (el.hasAttribute('data-conversio-phone')) return;
+                
+                const text = el.innerText ? el.innerText.trim() : '';
+                if (/^\+?[\d\s\-\(\)]{10,20}$/.test(text)) {
+                    el.setAttribute('data-conversio-phone', 'true');
+                    el.title = 'Нажми для автонабора в MicroSIP';
+                    el.style.cursor = 'pointer';
+                    el.style.transition = 'color 0.2s ease';
 
-                const isPhoneElement = (target.classList && target.classList.contains('rh-text')) ||
-                                       (/^\+?[\d\s\-\(\)]+$/.test(target.innerText.trim()) && target.innerText.trim().length >= 10);
-
-                if (isPhoneElement) {
-                    let rawPhone = target.innerText.trim();
-                    let cleanPhone = rawPhone.replace(/\D/g, '');
-                    if (cleanPhone.startsWith('8')) cleanPhone = '7' + cleanPhone.substring(1);
-
-                    if (cleanPhone.length >= 10) {
-                        e.preventDefault(); e.stopPropagation();
-                        
-                        target.style.color = '#D05A28';
-                        target.style.transition = 'color 0.2s ease';
-                        setTimeout(() => { target.style.color = ''; }, 1200);
-
-                        navigator.clipboard.writeText(cleanPhone);
-
-                        const iframe = document.createElement('iframe');
-                        iframe.style.display = 'none';
-                        iframe.src = `sip:${cleanPhone}`;
-                        document.body.appendChild(iframe);
-                        setTimeout(() => { document.body.removeChild(iframe); }, 300);
-                    }
+                    el.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        makeCall(text, el);
+                    });
                 }
-            }
-        });
+            });
+        }, 1000);
 
         document.addEventListener('keydown', function(e) {
             const sIn = document.getElementById('search') || document.querySelector('input[name="query"]');
