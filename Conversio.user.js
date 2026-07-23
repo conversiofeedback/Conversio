@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name        Conversio - CRM & Sauron ver. (20.1) Release
+// @name        Conversio - CRM & Sauron ver. (20.2) Release
 // @namespace   http://tampermonkey.net
-// @version     20.1
+// @version     20.2
 // @description Фоновая проверка обновлений, копирование ФИО и даты рождения.
 // @match       *://*/*
 // @grant       GM_xmlhttpRequest
@@ -14,7 +14,7 @@
 (function() {
     'use strict';
 
-    const SCRIPT_VERSION = '20.1';
+    const SCRIPT_VERSION = '20.2';
     const SCRIPT_DESC = 'Фоновая проверка обновлений, копирование ФИО и даты рождения.';
     const RAW_SCRIPT_URL = 'https://raw.githubusercontent.com/conversiofeedback/Conversio/main/Conversio.user.js';
     
@@ -27,7 +27,7 @@
         '🎉 Скрипт вышел из беты в полноценный релиз!',
         '🔄 Добавлена фоновая проверка обновлений',
         '🔔 Появление умного баннера при выходе новой версии',
-        '📐 Улучшено форматирование текста и защита от переноса слов'
+        '🛠️ Исправлена проблема с доступом к буферу обмена'
     ];
 
     let crmTimeoutHold = null;
@@ -284,7 +284,7 @@
         return `${day.padStart(2, '0')}.${month.padStart(2, '0')}.${year}`;
     }
 
-    // 1. ЛОГИКА CRM (ЛЕВАЯ ВКЛАДКА)
+    // 1. ЛОГИКА CRM (ЛЕВАЯ ВКЛАДКА) — Баннер обновления срабатывает только здесь
     if (window.location.href.includes('jrrgoxf-nreu-rwkhuv.top')) {
         let btn = null;
         let isSuccessState = false;
@@ -414,7 +414,7 @@
         }, 500);
     }
 
-    // 2. ЛОГИКА SAURON (ПРАВАЯ ВКЛАДКА)
+    // 2. ЛОГИКА SAURON (ПРАВАЯ ВКЛАДКА) — Проверка обновлений здесь не запускается
     if (window.location.href.includes('sauron.info')) {
 
         function isLightTheme() {
@@ -558,27 +558,34 @@
                 actBtn.onclick = function(e) {
                     e.preventDefault(); e.stopPropagation();
 
-                    navigator.clipboard.readText().then(text => {
-                        const rawText = text ? text.trim() : '';
-                        if (rawText) {
-                            const cleanText = smartCleanTest(rawText);
+                    sIn.focus();
+                    const pasted = document.execCommand('paste');
 
-                            sIn.focus();
+                    if (!pasted || !sIn.value.trim()) {
+                        navigator.clipboard.readText().then(text => {
+                            const rawText = text ? text.trim() : '';
+                            if (rawText) {
+                                sIn.value = smartCleanText(rawText);
+                                sIn.dispatchEvent(new Event('input', { bubbles: true }));
+                                sIn.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                        }).catch(() => {});
+                    }
+
+                    setTimeout(() => {
+                        const cleanText = smartCleanText(sIn.value);
+                        if (cleanText) {
                             sIn.value = cleanText;
                             sIn.dispatchEvent(new Event('input', { bubbles: true }));
                             sIn.dispatchEvent(new Event('change', { bubbles: true }));
 
                             const sBtn = document.querySelector('button.hs-go') || document.querySelector('button[type="submit"]');
-                            setTimeout(() => {
-                                if (sBtn) { sBtn.click(); }
-                                else if (sIn.form) { sIn.form.submit(); }
-                            }, 150);
+                            if (sBtn) { sBtn.click(); }
+                            else if (sIn.form) { sIn.form.submit(); }
                         } else {
-                            alert('Буфер обмена пуст! Сначала скопируйте данные из CRM.');
+                            alert('Буфер обмена пуст или поле ввода не заполнилось! Сначала скопируйте данные из CRM.');
                         }
-                    }).catch(() => {
-                        alert('Разрешите браузеру доступ к буферу обмена!');
-                    });
+                    }, 150);
                 };
                 sIn.insertAdjacentElement('afterend', actBtn);
 
