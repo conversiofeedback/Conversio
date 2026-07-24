@@ -545,27 +545,31 @@
             return false;
         }
 
-        // Интегрированные стили для номеров телефонов
+        // 1. Добавляем CSS-стили строго для анимирования номеров телефонов (ФИО больше не увеличивается!)
         if (!document.getElementById('sauron-phone-styles')) {
             const phoneStyle = document.createElement('style');
             phoneStyle.id = 'sauron-phone-styles';
+            
             phoneStyle.innerHTML = `
-                .rh-text {
-                    display: inline-block;
+                /* Применяем эффекты ТОЛЬКО к тем .rh-text, у которых есть маркер звонка */
+                .rh-text[data-conversio-call="true"] {
+                    display: inline-block; 
                     transition: color 0.4s cubic-bezier(0.25, 1, 0.5, 1), 
                                 transform 0.2s cubic-bezier(0.25, 1, 0.5, 1) !important;
                     will-change: transform, color;
                 }
                 
-                .rh-text:hover {
-                    color: #c45224 !important;
-                    transform: scale(1.04);
+                /* Подсветка при наведении — точный фирменный оранжевый Саурон */
+                .rh-text[data-conversio-call="true"]:hover {
+                    color: #c45224 !important; 
+                    transform: scale(1.04); /* Аккуратное увеличение номера на 4% */
                 }
 
-                .rh-text.phone-clicked {
-                    color: #9c3f19 !important;
-                    transform: scale(0.96);
-                    transition: 0s !important;
+                /* Мгновенная тактильная вспышка при клике */
+                .rh-text[data-conversio-call="true"].phone-clicked {
+                    color: #9c3f19 !important; 
+                    transform: scale(0.96); /* Эффект физического нажатия номера */
+                    transition: 0s !important; 
                 }
             `;
             document.head.appendChild(phoneStyle);
@@ -638,24 +642,31 @@
         themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme'] });
         themeObserver.observe(document.body, { attributes: true, attributeFilter: ['class', 'data-theme'] });
 
+        // 2. Логика поиска, фильтрации и разметки номеров
         setInterval(function() {
             const phoneElements = document.querySelectorAll('.rh-text');
             phoneElements.forEach(el => {
                 const text = el.innerText ? el.innerText.trim() : '';
 
+                // Проверяем регулярным выражением, что внутри блока именно номер, а не ФИО
                 if (/^\+?[\d\s\-\(\)]{10,20}$/.test(text)) {
                     if (!el.hasAttribute('data-conversio-call')) {
                         el.setAttribute('data-conversio-call', 'true');
                         el.title = '📞 Клик — автозвонок в MicroSIP';
                         el.style.cursor = 'pointer';
 
+                        // Слушатель клика с анимацией возврата
                         el.addEventListener('click', (e) => {
                             e.preventDefault();
                             e.stopPropagation();
                             
+                            // Мгновенно включаем цвет клика и сжатие
                             el.classList.add('phone-clicked');
+                            
+                            // Запускаем сам звонок
                             makeCall(text, el);
                             
+                            // Через 150мс убираем класс вспышки, и номер плавно вернется в hover-цвет
                             setTimeout(() => {
                                 el.classList.remove('phone-clicked');
                             }, 150);
