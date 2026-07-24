@@ -15,7 +15,7 @@
     'use strict';
 
     const SCRIPT_VERSION = '21.1';
-    const SCRIPT_DESC = 'Версия 21.1: Актуализированы точные оттенки цветов кнопки и логика подсветки для светлой и темной тем Sauron.';
+    const SCRIPT_DESC = 'Версия 21.1: Скорректирована цветовая гамма кнопок в Sauron, улучшены анимации и визуальный отклик при нажатии на кнопки в CRM.';
     const RAW_SCRIPT_URL = 'https://raw.githubusercontent.com/conversiofeedback/Conversio/main/Conversio.user.js';
 
     // 4 часа (в миллисекундах) + случайный разброс от -15 до +15 минут
@@ -25,7 +25,8 @@
 
     const CHANGELOG_TEXT = [
         '🚀 Версия 21.1',
-        '✨ Актуализированы точные оттенки цветов кнопки и логика подсветки для тем Sauron',
+        '✨ Исправлена цветовая гамма кнопок в Sauron как в тёмной, так и в светлой теме',
+        '✨ Улучшены анимации кнопок в CRM и добавлен наглядный визуальный отклик для подтверждения клика',
     ];
 
     let crmTimeoutHold = null;
@@ -551,11 +552,11 @@
             phoneStyle.innerHTML = `
                 .rh-text {
                     display: inline-block;
-                    transition: color 0.4s cubic-bezier(0.25, 1, 0.5, 1),
+                    transition: color 0.4s cubic-bezier(0.25, 1, 0.5, 1), 
                                 transform 0.2s cubic-bezier(0.25, 1, 0.5, 1) !important;
                     will-change: transform, color;
                 }
-
+                
                 .rh-text:hover {
                     color: #c45224 !important;
                     transform: scale(1.04);
@@ -582,7 +583,7 @@
                     /* Плавный переход цвета при наведении мыши (0.15 секунды) */
                     transition: transform 0.1s ease, background-color 0.15s ease, border-color 0.15s ease !important;
                 }
-
+                
                 /* Эффект при наведении курсора (hover) — точные цвета оригинальной кнопки сайта */
                 #sauron-paste-btn:hover {
                     background-color: var(--sauron-btn-hover-bg) !important;
@@ -604,27 +605,27 @@
         function updateButtonTheme() {
             const btn = document.getElementById('sauron-paste-btn');
             if (!btn) return;
-
+            
             const light = isLightTheme();
-
+            
             if (light) {
                 // СВЕТЛАЯ ТЕМА: Идеальный баланс из прошлых шагов
                 btn.style.backgroundColor = '#be5524'; // Обычное состояние (оригинал)
                 btn.style.borderColor = '#a8471b';
-
+                
                 btn.style.setProperty('--sauron-btn-hover-bg', '#a4431b'); // При наведении (темнее днём)
                 btn.style.setProperty('--sauron-btn-hover-border', '#8c3612');
-
+                
                 btn.style.setProperty('--sauron-btn-active-bg', '#8a2f0c'); // При клике
                 btn.style.setProperty('--sauron-btn-active-border', '#702508');
             } else {
                 // ТЁМНАЯ ТЕМА: Исправленная логика подсветки (теперь кнопка СВЕТЛЕЕТ при наведении!)
                 btn.style.backgroundColor = '#d35c25'; // Обычное состояние (как у оригинала "Найти")
                 btn.style.borderColor = '#b74e1d';
-
+                
                 btn.style.setProperty('--sauron-btn-hover-bg', '#e46833'); // При наведении загорается ЯРЧЕ (точный замер)
                 btn.style.setProperty('--sauron-btn-hover-border', '#ca5828');
-
+                
                 btn.style.setProperty('--sauron-btn-active-bg', '#ba4a1a'); // При клике (сочный упругий отклик)
                 btn.style.setProperty('--sauron-btn-active-border', '#9c3b12');
             }
@@ -651,10 +652,10 @@
                         el.addEventListener('click', (e) => {
                             e.preventDefault();
                             e.stopPropagation();
-
+                            
                             el.classList.add('phone-clicked');
                             makeCall(text, el);
-
+                            
                             setTimeout(() => {
                                 el.classList.remove('phone-clicked');
                             }, 150);
@@ -761,7 +762,7 @@
                 `;
 
                 sIn.insertAdjacentElement('afterend', actBtn);
-
+                
                 // Сразу же красим кнопку под текущую активную тему
                 updateButtonTheme();
 
