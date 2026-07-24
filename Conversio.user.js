@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Conversio - CRM & Sauron ver. (21.0) Release
+// @name        Conversio - CRM & Sauron ver. (21.1) Release
 // @namespace   http://tampermonkey.net
-// @version     21.0
-// @description Вернули анимации кнопки, исправили ошибки.
+// @version     21.1
+// @description Фоновая проверка обновлений, запрет разрыва слов, автозвонок и копирование номеров в Sauron, точные фирменные цвета кнопки.
 // @match       *://*/*
 // @grant       GM_xmlhttpRequest
 // @connect     raw.githubusercontent.com
@@ -14,8 +14,8 @@
 (function() {
     'use strict';
 
-    const SCRIPT_VERSION = '21.0';
-    const SCRIPT_DESC = 'Версия 21.0: Исправлены и улучшены анимации кнопок и их логика.';
+    const SCRIPT_VERSION = '21.1';
+    const SCRIPT_DESC = 'Версия 21.1: Актуализированы точные оттенки цветов кнопки и логика подсветки для светлой и темной тем Sauron.';
     const RAW_SCRIPT_URL = 'https://raw.githubusercontent.com/conversiofeedback/Conversio/main/Conversio.user.js';
 
     // 4 часа (в миллисекундах) + случайный разброс от -15 до +15 минут
@@ -24,8 +24,8 @@
     const CHECK_INTERVAL = BASE_INTERVAL + RANDOM_JITTER;
 
     const CHANGELOG_TEXT = [
-        '🚀 Версия 21.0',
-        '✨ Исправлены и улучшены анимации кнопок и их логика',
+        '🚀 Версия 21.1',
+        '✨ Актуализированы точные оттенки цветов кнопки и логика подсветки для тем Sauron',
     ];
 
     let crmTimeoutHold = null;
@@ -404,13 +404,6 @@
         if (cleanPhone.startsWith('8')) cleanPhone = '7' + cleanPhone.substring(1);
 
         if (cleanPhone.length >= 10) {
-            if (targetElement) {
-                const originalColor = targetElement.style.color;
-                targetElement.style.color = '#D05A28';
-                targetElement.style.transition = 'color 0.2s ease';
-                setTimeout(() => { targetElement.style.color = originalColor; }, 1200);
-            }
-
             const iframe = document.createElement('iframe');
             iframe.style.display = 'none';
             iframe.src = `sip:${cleanPhone}`;
@@ -551,12 +544,98 @@
             return false;
         }
 
+        // Интегрированные стили для номеров телефонов
+        if (!document.getElementById('sauron-phone-styles')) {
+            const phoneStyle = document.createElement('style');
+            phoneStyle.id = 'sauron-phone-styles';
+            phoneStyle.innerHTML = `
+                .rh-text {
+                    display: inline-block;
+                    transition: color 0.4s cubic-bezier(0.25, 1, 0.5, 1),
+                                transform 0.2s cubic-bezier(0.25, 1, 0.5, 1) !important;
+                    will-change: transform, color;
+                }
+
+                .rh-text:hover {
+                    color: #c45224 !important;
+                    transform: scale(1.04);
+                }
+
+                .rh-text.phone-clicked {
+                    color: #9c3f19 !important;
+                    transform: scale(0.96);
+                    transition: 0s !important;
+                }
+            `;
+            document.head.appendChild(phoneStyle);
+        }
+
+        // 1. Добавляем точные CSS-стили для объема, ховера и эффекта нажатия
+        if (!document.getElementById('sauron-btn-effects')) {
+            const btnStyle = document.createElement('style');
+            btnStyle.id = 'sauron-btn-effects';
+            btnStyle.innerHTML = `
+                #sauron-paste-btn {
+                    /* Тонкий внутренний блик по верхнему краю для объема, как у оригинала */
+                    box-shadow: inset 0 1px 0 rgba(255,255,255,0.2), 0 1px 2px rgba(0,0,0,0.15) !important;
+                    text-shadow: 0 -1px 0 rgba(0,0,0,0.2);
+                    /* Плавный переход цвета при наведении мыши (0.15 секунды) */
+                    transition: transform 0.1s ease, background-color 0.15s ease, border-color 0.15s ease !important;
+                }
+
+                /* Эффект при наведении курсора (hover) — точные цвета оригинальной кнопки сайта */
+                #sauron-paste-btn:hover {
+                    background-color: var(--sauron-btn-hover-bg) !important;
+                    border-color: var(--sauron-btn-hover-border) !important;
+                }
+
+                /* Мгновенная тактильная анимация нажатия перед обновлением страницы */
+                #sauron-paste-btn:active {
+                    transform: translateY(-48%) scale(0.96) !important; /* Физическое сжатие кнопки на 4% */
+                    background-color: var(--sauron-btn-active-bg) !important; /* Индивидуальный цвет клика темы */
+                    border-color: var(--sauron-btn-active-border) !important;
+                    box-shadow: inset 0 2px 4px rgba(0,0,0,0.4) !important; /* Глубокая внутренняя тень проседания */
+                }
+            `;
+            document.head.appendChild(btnStyle);
+        }
+
+        // Функция динамического обновления базовых цветов кнопки под оригинальный стиль Саурона
         function updateButtonTheme() {
             const btn = document.getElementById('sauron-paste-btn');
             if (!btn) return;
-            btn.style.backgroundColor = '#D05A28';
-            btn.style.borderColor = isLightTheme() ? '#B3461B' : '#E26833';
+
+            const light = isLightTheme();
+
+            if (light) {
+                // СВЕТЛАЯ ТЕМА: Идеальный баланс из прошлых шагов
+                btn.style.backgroundColor = '#be5524'; // Обычное состояние (оригинал)
+                btn.style.borderColor = '#a8471b';
+
+                btn.style.setProperty('--sauron-btn-hover-bg', '#a4431b'); // При наведении (темнее днём)
+                btn.style.setProperty('--sauron-btn-hover-border', '#8c3612');
+
+                btn.style.setProperty('--sauron-btn-active-bg', '#8a2f0c'); // При клике
+                btn.style.setProperty('--sauron-btn-active-border', '#702508');
+            } else {
+                // ТЁМНАЯ ТЕМА: Исправленная логика подсветки (теперь кнопка СВЕТЛЕЕТ при наведении!)
+                btn.style.backgroundColor = '#d35c25'; // Обычное состояние (как у оригинала "Найти")
+                btn.style.borderColor = '#b74e1d';
+
+                btn.style.setProperty('--sauron-btn-hover-bg', '#e46833'); // При наведении загорается ЯРЧЕ (точный замер)
+                btn.style.setProperty('--sauron-btn-hover-border', '#ca5828');
+
+                btn.style.setProperty('--sauron-btn-active-bg', '#ba4a1a'); // При клике (сочный упругий отклик)
+                btn.style.setProperty('--sauron-btn-active-border', '#9c3b12');
+            }
         }
+
+        // НАДЕЖНАЯ СИНХРОНИЗАЦИЯ ТЕМЫ: Следим за изменением классов сайта в реальном времени
+        const themeObserver = new MutationObserver(() => {
+            updateButtonTheme();
+        });
+        themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme'] });
+        themeObserver.observe(document.body, { attributes: true, attributeFilter: ['class', 'data-theme'] });
 
         setInterval(function() {
             const phoneElements = document.querySelectorAll('.rh-text');
@@ -572,7 +651,13 @@
                         el.addEventListener('click', (e) => {
                             e.preventDefault();
                             e.stopPropagation();
+
+                            el.classList.add('phone-clicked');
                             makeCall(text, el);
+
+                            setTimeout(() => {
+                                el.classList.remove('phone-clicked');
+                            }, 150);
                         });
                     }
 
@@ -642,14 +727,6 @@
         }, true);
 
         setInterval(function() {
-            const themeBtn = document.getElementById('theme-toggle');
-            if (themeBtn && !themeBtn.hasAttribute('data-sauron-bound')) {
-                themeBtn.setAttribute('data-sauron-bound', 'true');
-                themeBtn.addEventListener('click', function() {
-                    setTimeout(updateButtonTheme, 50);
-                });
-            }
-
             const sIn = document.getElementById('search') || document.querySelector('input[name="query"]');
             if (sIn && !document.getElementById('sauron-paste-btn')) {
                 const container = sIn.parentNode;
@@ -664,7 +741,7 @@
                 actBtn.id = 'sauron-paste-btn';
                 actBtn.innerHTML = '🔍 Вставить и пробить клиента';
 
-                const light = isLightTheme();
+                // Первичное позиционирование геометрии кнопки
                 actBtn.style = `
                     position: absolute;
                     right: 98px;
@@ -673,25 +750,20 @@
                     height: calc(100% - 6px);
                     max-height: 38px;
                     padding: 0 14px;
-                    background-color: #D05A28;
                     color: #fff;
-                    border: 1px solid ${light ? '#B3461B' : '#E26833'};
+                    border: 1px solid transparent;
                     border-radius: 4px;
                     cursor: pointer;
                     font-weight: bold;
                     font-size: 12px;
                     white-space: nowrap;
                     z-index: 10;
-                    transition: background-color 0.15s ease, border-color 0.15s ease;
                 `;
 
-                actBtn.onmouseenter = function() {
-                    const isLight = isLightTheme();
-                    this.style.backgroundColor = isLight ? '#B3461B' : '#F17138';
-                };
-                actBtn.onmouseleave = function() {
-                    this.style.backgroundColor = '#D05A28';
-                };
+                sIn.insertAdjacentElement('afterend', actBtn);
+
+                // Сразу же красим кнопку под текущую активную тему
+                updateButtonTheme();
 
                 actBtn.onclick = function(e) {
                     e.preventDefault(); e.stopPropagation();
@@ -725,7 +797,6 @@
                         }
                     }, 150);
                 };
-                sIn.insertAdjacentElement('afterend', actBtn);
             }
         }, 500);
     }
